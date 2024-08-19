@@ -20,7 +20,9 @@ namespace Graphi
     {
       InitializeComponent();
 
-      new GraphClient();
+      var client = new GraphClient();
+
+      Task task = client.CreateMessage();
     }
   }
 }

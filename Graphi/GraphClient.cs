@@ -3,15 +3,16 @@ using Azure.Identity;
 using Graphi.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using System.Diagnostics;
-using System.Runtime;
 
 namespace Graphi
 {
   internal class GraphClient
   {
     private Settings settings;
-    private DeviceCodeCredential deviceCodeCredential;
+    private InteractiveBrowserCredential interactiveCredential;
+    private GraphServiceClient userClient;
 
     public GraphClient()
     {
@@ -22,34 +23,53 @@ namespace Graphi
 
       this.settings = config.GetRequiredSection("Settings").Get<Settings>()!;
 
-      var options = new DeviceCodeCredentialOptions
+      var options = new InteractiveBrowserCredentialOptions
       {
         ClientId = settings.ClientId,
         TenantId = settings.TenantId,
-        DeviceCodeCallback = (info, cancel) =>
+        AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+        // MUST be http://localhost or http://localhost:PORT
+        // See https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/wiki/System-Browser-on-.Net-Core
+        RedirectUri = new Uri("http://localhost"),
+      };
+
+      interactiveCredential = new InteractiveBrowserCredential(options);
+
+      this.userClient = new GraphServiceClient(interactiveCredential, this.settings.GraphUserScopes);
+    }
+
+    public async Task GetTokenAsync()
+    {
+      var context = new TokenRequestContext(this.settings.GraphUserScopes);
+      var response = await this.interactiveCredential.GetTokenAsync(context);
+      var token = response.Token;
+    }
+
+    public async Task CreateMessage()
+    {
+      var requestBody = new Message
+      {
+        Subject = "Did you see last night's game?",
+        Importance = Importance.Low,
+        Body = new ItemBody
         {
-          // Display the device code message to
-          // the user. This tells them
-          // where to go to sign in and provides the
-          // code to use.
-          Debug.WriteLine(info.Message);
-          return Task.FromResult(0);
+          ContentType = BodyType.Html,
+          Content = "They were <b>awesome</b>!",
+        },
+        ToRecipients = new List<Recipient>
+        {
+          new Recipient
+          {
+            EmailAddress = new EmailAddress
+            {
+              Address = "schulz-theissen@eevolution.de",
+            },
+          },
         },
       };
 
-      this.deviceCodeCredential = new DeviceCodeCredential(options);
-
-      var userClient = new GraphServiceClient(deviceCodeCredential, this.settings.GraphUserScopes);
-       
-      var token = this.GetTokenAsync();
-    }
-
-    private async Task GetTokenAsync()
-    {
-      var context = new TokenRequestContext(this.settings.GraphUserScopes);
-      var response = await this.deviceCodeCredential.GetTokenAsync(context);
-      var token = response.Token;
-      Debug.WriteLine(token);
+      var test = await this.userClient.Me.Messages.PostAsync(requestBody);
+      System.Diagnostics.Process.Start(new ProcessStartInfo(test.WebLink) { UseShellExecute = true });
     }
   }
 }
