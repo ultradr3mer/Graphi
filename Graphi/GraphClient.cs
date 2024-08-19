@@ -42,8 +42,6 @@ namespace Graphi
       var userClient = new GraphServiceClient(deviceCodeCredential, this.settings.GraphUserScopes);
        
       var token = this.GetTokenAsync();
-
-      userClient.Me.RevokeSignInSessions.PostAsRevokeSignInSessionsPostResponseAsync()
     }
 
     private async Task GetTokenAsync()
