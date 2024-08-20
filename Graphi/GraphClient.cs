@@ -11,10 +11,10 @@ namespace Graphi
   internal class GraphClient
   {
     private Settings settings;
-    private InteractiveBrowserCredential interactiveCredential;
+    private TokenCredential credential;
     private GraphServiceClient userClient;
 
-    public GraphClient()
+    public GraphClient(AccessToken token = default)
     {
       IConfiguration config = new ConfigurationBuilder()
           .AddJsonFile("appsettings.json", optional: false)
@@ -33,16 +33,23 @@ namespace Graphi
         RedirectUri = new Uri("http://localhost"),
       };
 
-      interactiveCredential = new InteractiveBrowserCredential(options);
+      if (token.Token != default(AccessToken).Token)
+      {
+        credential = DelegatedTokenCredential.Create((context, cancel) => token);
+        this.userClient = new GraphServiceClient(credential, this.settings.GraphUserScopes);
+      }
+      else
+      {
+        credential = new InteractiveBrowserCredential(options);
+      }
 
-      this.userClient = new GraphServiceClient(interactiveCredential, this.settings.GraphUserScopes);
+      this.userClient = new GraphServiceClient(credential, this.settings.GraphUserScopes);
     }
 
-    public async Task GetTokenAsync()
+    public async Task<AccessToken> GetTokenAsync()
     {
       var context = new TokenRequestContext(this.settings.GraphUserScopes);
-      var response = await this.interactiveCredential.GetTokenAsync(context);
-      var token = response.Token;
+      return await this.credential.GetTokenAsync(context, new CancellationToken());
     }
 
     public async Task CreateMessage()
