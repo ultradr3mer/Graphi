@@ -16,10 +16,7 @@ namespace Graphi
     private async Task Test()
     {
       var client = new GraphClient();
-      var token = await client.GetTokenAsync();
-
-      var client2 = new GraphClient(token);
-      await client2.CreateMessage();
+      await client.CreateMessage();
     }
   }
 }

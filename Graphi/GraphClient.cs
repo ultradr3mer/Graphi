@@ -4,6 +4,7 @@ using Graphi.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.Graph.Users.Item.SendMail;
 using System.Diagnostics;
 
 namespace Graphi
@@ -23,14 +24,9 @@ namespace Graphi
 
       this.settings = config.GetRequiredSection("Settings").Get<Settings>()!;
 
-      var options = new InteractiveBrowserCredentialOptions
+      var options = new ClientSecretCredentialOptions
       {
-        ClientId = settings.ClientId,
-        TenantId = settings.TenantId,
         AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
-        // MUST be http://localhost or http://localhost:PORT
-        // See https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/wiki/System-Browser-on-.Net-Core
-        RedirectUri = new Uri("http://localhost"),
       };
 
       if (token.Token != default(AccessToken).Token)
@@ -40,7 +36,7 @@ namespace Graphi
       }
       else
       {
-        credential = new InteractiveBrowserCredential(options);
+        credential = new ClientSecretCredential(settings.TenantId, settings.ClientId, settings.ClientSecret, options);
       }
 
       this.userClient = new GraphServiceClient(credential, this.settings.GraphUserScopes);
@@ -56,12 +52,12 @@ namespace Graphi
     {
       var requestBody = new Message
       {
-        Subject = "Did you see last night's game?",
+        Subject = "Dada?",
         Importance = Importance.Low,
         Body = new ItemBody
         {
           ContentType = BodyType.Html,
-          Content = "They were <b>awesome</b>!",
+          Content = "Nabla!",
         },
         ToRecipients = new List<Recipient>
         {
@@ -69,14 +65,17 @@ namespace Graphi
           {
             EmailAddress = new EmailAddress
             {
-              Address = "schulz-theissen@eevolution.de",
+              Address = this.settings.Recipient,
             },
           },
         },
       };
 
-      var test = await this.userClient.Me.Messages.PostAsync(requestBody);
-      System.Diagnostics.Process.Start(new ProcessStartInfo(test.WebLink) { UseShellExecute = true });
+      //var test = await this.userClient.Users[this.settings.Sender].Messages.PostAsync(requestBody);
+      //System.Diagnostics.Process.Start(new ProcessStartInfo(test.WebLink) { UseShellExecute = true });
+
+      var req = new SendMailPostRequestBody() { Message = requestBody, SaveToSentItems = true };
+      await this.userClient.Users[this.settings.Sender].SendMail.PostAsync(req);
     }
   }
 }
