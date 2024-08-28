@@ -1,11 +1,13 @@
 ﻿using Azure.Core;
 using Azure.Identity;
 using Graphi.Data;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.SendMail;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Graphi
 {
@@ -17,12 +19,7 @@ namespace Graphi
 
     public GraphClient(AccessToken token = default)
     {
-      IConfiguration config = new ConfigurationBuilder()
-          .AddJsonFile("appsettings.json", optional: false)
-          .AddJsonFile($"appsettings.Development.json", optional: true)
-          .Build();
-
-      this.settings = config.GetRequiredSection("Settings").Get<Settings>()!;
+      this.settings = new Settings();
 
       var options = new ClientSecretCredentialOptions
       {
