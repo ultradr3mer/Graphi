@@ -11,8 +11,6 @@ namespace GraphiConsole48
   {
     static void Main(string[] args)
     {
-      var config = AppConfigGenerator.Generate();
-
       var client = new GraphClient();
       client.CreateMessage().GetAwaiter().GetResult();
     }

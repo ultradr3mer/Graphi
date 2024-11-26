@@ -1,11 +1,13 @@
 ﻿using Azure.Core;
 using Azure.Identity;
 using Graphi.Data;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.SendMail;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,30 +15,44 @@ namespace Graphi
 {
   internal class GraphClient
   {
-    private Settings settings;
+    protected Settings settings;
     private TokenCredential credential;
     private GraphServiceClient userClient;
 
     public GraphClient(AccessToken token = default)
     {
-      this.settings = new Settings();
+      IConfiguration config = new ConfigurationBuilder()
+          .AddJsonFile("appsettings.json", optional: false)
+          .AddJsonFile($"appsettings.Development.json", optional: true)
+          .Build();
 
-      var options = new ClientSecretCredentialOptions
-      {
-        AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
-      };
+      this.settings = config.GetRequiredSection("Settings").Get<Settings>();
 
-      if (token.Token != default(AccessToken).Token)
+
+      if (this.settings.TenantId == "common")
       {
-        credential = DelegatedTokenCredential.Create((context, cancel) => token);
-        this.userClient = new GraphServiceClient(credential, this.settings.GraphUserScopes);
+        var options = new InteractiveBrowserCredentialOptions
+        {
+          ClientId = this.settings.ClientId,
+          TenantId = "common",
+          AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+          RedirectUri = new Uri("http://localhost"),
+        };
+
+        this.credential = new InteractiveBrowserCredential(options);
+
+        this.userClient = new GraphServiceClient(this.credential, this.settings.GraphUserScopes);
       }
       else
       {
-        credential = new ClientSecretCredential(settings.TenantId, settings.ClientId, settings.ClientSecret, options);
-      }
+        var options = new ClientSecretCredentialOptions
+        {
+          AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+        };
 
-      this.userClient = new GraphServiceClient(credential, this.settings.GraphUserScopes);
+        this.credential = new ClientSecretCredential(this.settings.TenantId, this.settings.ClientId, this.settings.ClientSecret, options);
+        this.userClient = new GraphServiceClient(this.credential, this.settings.GraphUserScopes);
+      }
     }
 
     public async Task<AccessToken> GetTokenAsync()
